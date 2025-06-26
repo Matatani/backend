@@ -1,25 +1,23 @@
 package config
 
 import (
-	"fmt"
-	"github.com/joho/godotenv"
 	"os"
 )
 
 type APIConfig struct {
-	HostPort string
+	Host   string
+	Port   string
+	MLHost string
 }
 
 func Load() (*APIConfig, error) {
-	err := godotenv.Load()
-	if err != nil {
-		return nil, fmt.Errorf("error loading .env file")
-	}
-
-	hostPort := os.Getenv("HOST_PORT")
-
+	host := os.Getenv("BE_HOST")
+	port := os.Getenv("BE_PORT")
+	mlHost := os.Getenv("ML_HOST")
 	return &APIConfig{
-		HostPort: hostPort,
+		Host:   host,
+		Port:   port,
+		MLHost: mlHost,
 	}, nil
 
 }

@@ -16,8 +16,10 @@ import (
 )
 
 func newHTTPServer(cfg *config.APIConfig) *http.Server {
+	addr := cfg.Host + ":" + cfg.Port
+	log.Println("Binding to:", addr)
 	return &http.Server{
-		Addr:    ":" + cfg.HostPort,
+		Addr:    addr,
 		Handler: server.NewRouter(),
 	}
 }
@@ -40,13 +42,13 @@ func waitForShutdown(ctx context.Context, httpServer *http.Server) error {
 
 	return nil
 }
-func callMLService() error {
+func callMLService(cfg *config.APIConfig) error {
 	var err error
 	var conn *grpc.ClientConn
 	var client ml.PredictorClient
 	var ctx context.Context
 
-	conn, err = grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err = grpc.NewClient(cfg.MLHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
@@ -98,7 +100,7 @@ func main() {
 	})
 
 	go func() {
-		err = callMLService()
+		err = callMLService(cfg)
 		if err != nil {
 			log.Printf("Error calling ML service: %v", err)
 		}

@@ -12,7 +12,6 @@ import (
 const BASE_PATH = "/upload/"
 
 func TusHandler() (*tusd.Handler, error) {
-	log.Printf("I am called")
 
 	uploadDir := "./uploads"
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
