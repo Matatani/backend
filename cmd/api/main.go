@@ -4,6 +4,7 @@ import (
 	"context"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"net"
 	"net/http"
@@ -51,14 +52,50 @@ func waitForShutdown(ctx context.Context, httpServer *http.Server, grpcServer *g
 
 	return nil
 }
+func callMLService() error {
+	var err error
+	var conn *grpc.ClientConn
+	var client ml.PredictorClient
+	var ctx context.Context
+
+	conn, err = grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+	}
+	defer conn.Close()
+
+	client = ml.NewPredictorClient(conn)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	req := &ml.HelloRequest{
+		Greeting: &ml.Greeting{
+			Greeting: "Hello",
+			Name:     "Matatani",
+		},
+		From: "Matatani",
+	}
+
+	resp, err := client.Hello(ctx, req)
+	if err != nil {
+		log.Fatalf("could not greet: %v\n", err)
+	}
+	log.Printf("Greeting: %s", resp.Greeting)
+
+	return err
+}
 
 func main() {
-	cfg, err := config.Load()
+	var err error
+	var cfg *config.APIConfig
+
+	cfg, err = config.Load()
 	if err != nil {
 		log.Printf("Error processing config: %s\nUsing OS env", err)
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
 	defer stop()
 
 	grp, ctx := errgroup.WithContext(ctx)
@@ -69,14 +106,25 @@ func main() {
 	grp.Go(func() error {
 		return runHTTPServer(ctx, httpServer)
 	})
+
 	grp.Go(func() error {
-		return runGRPCServer(ctx, ":50051", grpcServer)
+		return runGRPCServer(ctx, ":50052", grpcServer)
 	})
+
 	grp.Go(func() error {
 		return waitForShutdown(ctx, httpServer, grpcServer)
 	})
 
+	go func() {
+		err = callMLService()
+		if err != nil {
+			log.Printf("Error calling ML service: %v", err)
+		}
+	}()
+
 	if err := grp.Wait(); err != nil {
-		log.Fatal(err)
+		log.Printf("A server process failed: %v", err)
 	}
+
+	log.Println("Application shut down.")
 }
