@@ -10,6 +10,8 @@ require (
 )
 
 require (
+	github.com/bmizerany/pat v0.0.0-20170815010413-6226ea591a40 // indirect
+	github.com/tus/tusd v1.13.0 // indirect
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/text v0.23.0 // indirect

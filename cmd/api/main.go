@@ -6,7 +6,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -22,21 +21,11 @@ func newHTTPServer(cfg *config.APIConfig) *http.Server {
 		Handler: server.NewRouter(),
 	}
 }
-func newGRPCServer(cfg *config.APIConfig) *grpc.Server {
-	srv := grpc.NewServer()
-	ml.RegisterPredictorServer(srv, server.Predictor{})
-	return srv
-}
 func runHTTPServer(ctx context.Context, srv *http.Server) error {
 	log.Printf("HTTP server listening on %s", srv.Addr)
 	return srv.ListenAndServe()
 }
-func runGRPCServer(ctx context.Context, address string, srv *grpc.Server) error {
-	listener, _ := net.Listen("tcp", address)
-	log.Printf("gRPC server listening on %s", listener.Addr())
-	return srv.Serve(listener)
-}
-func waitForShutdown(ctx context.Context, httpServer *http.Server, grpcServer *grpc.Server) error {
+func waitForShutdown(ctx context.Context, httpServer *http.Server) error {
 	<-ctx.Done()
 	log.Println("Shutdown signal received")
 
@@ -47,7 +36,6 @@ func waitForShutdown(ctx context.Context, httpServer *http.Server, grpcServer *g
 		log.Printf("HTTP shutdown error: %v", err)
 	}
 
-	grpcServer.GracefulStop()
 	log.Println("Servers shut down successfully.")
 
 	return nil
@@ -101,18 +89,12 @@ func main() {
 	grp, ctx := errgroup.WithContext(ctx)
 
 	httpServer := newHTTPServer(cfg)
-	grpcServer := newGRPCServer(cfg)
 
 	grp.Go(func() error {
 		return runHTTPServer(ctx, httpServer)
 	})
-
 	grp.Go(func() error {
-		return runGRPCServer(ctx, ":50052", grpcServer)
-	})
-
-	grp.Go(func() error {
-		return waitForShutdown(ctx, httpServer, grpcServer)
+		return waitForShutdown(ctx, httpServer)
 	})
 
 	go func() {
