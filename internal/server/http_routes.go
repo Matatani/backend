@@ -3,11 +3,12 @@ package server
 import (
 	"log"
 	"net/http"
+	"www.github.com/Maevlava/Matatani/backend/internal/config"
 	"www.github.com/Maevlava/Matatani/backend/internal/uc_heading"
 	"www.github.com/Maevlava/Matatani/backend/internal/uc_upload"
 )
 
-func NewRouter() http.Handler {
+func NewRouter(cfg *config.APIConfig) http.Handler {
 	mux := http.NewServeMux()
 
 	// Heading features
@@ -15,7 +16,7 @@ func NewRouter() http.Handler {
 	uc_heading.RegisterHeadingRoutes(mux, headingHandler)
 
 	// Upload features
-	tusHandler, err := uc_upload.TusHandler()
+	tusHandler, err := uc_upload.TusHandler(cfg)
 	uc_upload.RegisterUploadRoutes(mux, tusHandler)
 
 	if err != nil {

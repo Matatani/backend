@@ -20,7 +20,7 @@ func newHTTPServer(cfg *config.APIConfig) *http.Server {
 	log.Println("Binding to:", addr)
 	return &http.Server{
 		Addr:    addr,
-		Handler: server.NewRouter(),
+		Handler: server.NewRouter(cfg),
 	}
 }
 func runHTTPServer(ctx context.Context, srv *http.Server) error {

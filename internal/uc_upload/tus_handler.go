@@ -1,28 +1,34 @@
 package uc_upload
 
 import (
-	"github.com/tus/tusd/pkg/filestore"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	tusd "github.com/tus/tusd/pkg/handler"
+	"github.com/tus/tusd/pkg/s3store"
 	"log"
 	"net/http"
-	"os"
+	"www.github.com/Maevlava/Matatani/backend/internal/config"
 	"www.github.com/Maevlava/Matatani/backend/internal/middleware"
 )
 
 const BASE_PATH = "/upload/"
 
-func TusHandler() (*tusd.Handler, error) {
+func TusHandler(cfg *config.APIConfig) (*tusd.Handler, error) {
 
-	uploadDir := "./uploads"
-	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		return nil, err
+	awsCfg := &aws.Config{
+		Endpoint:         aws.String(cfg.S3Endpoint),
+		Region:           aws.String(cfg.AWSRegion),
+		S3ForcePathStyle: aws.Bool(true),
+		Credentials:      credentials.NewStaticCredentials(cfg.AWSAccessKey, cfg.AWSSecretKey, ""),
+		DisableSSL:       aws.Bool(true),
 	}
 
-	// later uses s3store or gcsstore
-	store := filestore.FileStore{
-		Path: uploadDir,
-	}
+	sess := session.Must(session.NewSession(awsCfg))
+	svc := s3.New(sess)
 
+	store := s3store.New(cfg.S3Bucket, svc)
 	composer := tusd.NewStoreComposer()
 	store.UseIn(composer)
 
