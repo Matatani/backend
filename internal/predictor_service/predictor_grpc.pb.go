@@ -4,7 +4,7 @@
 // - protoc             v3.12.4
 // source: predictor.proto
 
-package ml
+package predictor_service
 
 import (
 	context "context"
@@ -19,7 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Predictor_Hello_FullMethodName = "/Predictor/Hello"
+	Predictor_Hello_FullMethodName        = "/Predictor/Hello"
+	Predictor_PredictImage_FullMethodName = "/Predictor/PredictImage"
 )
 
 // PredictorClient is the client API for Predictor service.
@@ -27,6 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type PredictorClient interface {
 	Hello(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (*HelloResponse, error)
+	PredictImage(ctx context.Context, in *PredictImageRequest, opts ...grpc.CallOption) (*PredictImageResponse, error)
 }
 
 type predictorClient struct {
@@ -47,11 +49,22 @@ func (c *predictorClient) Hello(ctx context.Context, in *HelloRequest, opts ...g
 	return out, nil
 }
 
+func (c *predictorClient) PredictImage(ctx context.Context, in *PredictImageRequest, opts ...grpc.CallOption) (*PredictImageResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PredictImageResponse)
+	err := c.cc.Invoke(ctx, Predictor_PredictImage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PredictorServer is the server API for Predictor service.
 // All implementations must embed UnimplementedPredictorServer
 // for forward compatibility.
 type PredictorServer interface {
 	Hello(context.Context, *HelloRequest) (*HelloResponse, error)
+	PredictImage(context.Context, *PredictImageRequest) (*PredictImageResponse, error)
 	mustEmbedUnimplementedPredictorServer()
 }
 
@@ -64,6 +77,9 @@ type UnimplementedPredictorServer struct{}
 
 func (UnimplementedPredictorServer) Hello(context.Context, *HelloRequest) (*HelloResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Hello not implemented")
+}
+func (UnimplementedPredictorServer) PredictImage(context.Context, *PredictImageRequest) (*PredictImageResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PredictImage not implemented")
 }
 func (UnimplementedPredictorServer) mustEmbedUnimplementedPredictorServer() {}
 func (UnimplementedPredictorServer) testEmbeddedByValue()                   {}
@@ -104,6 +120,24 @@ func _Predictor_Hello_Handler(srv interface{}, ctx context.Context, dec func(int
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Predictor_PredictImage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PredictImageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PredictorServer).PredictImage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Predictor_PredictImage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PredictorServer).PredictImage(ctx, req.(*PredictImageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Predictor_ServiceDesc is the grpc.ServiceDesc for Predictor service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -114,6 +148,10 @@ var Predictor_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Hello",
 			Handler:    _Predictor_Hello_Handler,
+		},
+		{
+			MethodName: "PredictImage",
+			Handler:    _Predictor_PredictImage_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -11,19 +11,19 @@ import (
 	"os/signal"
 	"time"
 	"www.github.com/Maevlava/Matatani/backend/internal/config"
-	"www.github.com/Maevlava/Matatani/backend/internal/ml"
+	"www.github.com/Maevlava/Matatani/backend/internal/predictor_service"
 	server "www.github.com/Maevlava/Matatani/backend/internal/server"
 )
 
-func newHTTPServer(cfg *config.APIConfig) *http.Server {
+func newHTTPServer(cfg *config.APIConfig, matataniServer *server.MatataniServer) *http.Server {
 	addr := cfg.Host + ":" + cfg.Port
 	log.Println("Binding to:", addr)
 	return &http.Server{
 		Addr:    addr,
-		Handler: server.NewRouter(cfg),
+		Handler: matataniServer.NewHTTPRouter(),
 	}
 }
-func runHTTPServer(ctx context.Context, srv *http.Server) error {
+func runHTTPServer(srv *http.Server) error {
 	log.Printf("HTTP server listening on %s", srv.Addr)
 	return srv.ListenAndServe()
 }
@@ -42,38 +42,16 @@ func waitForShutdown(ctx context.Context, httpServer *http.Server) error {
 
 	return nil
 }
-func callMLService(cfg *config.APIConfig) error {
-	var err error
-	var conn *grpc.ClientConn
-	var client ml.PredictorClient
-	var ctx context.Context
+func newMLClient(cfg *config.APIConfig) *predictor_service.PredictorClient {
+	var client *predictor_service.PredictorClient
 
-	conn, err = grpc.NewClient(cfg.MLHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(cfg.MLHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatalf("did not connect: %v", err)
+		log.Fatalf("did not connect predictor_service service: %v", err)
 	}
 	defer conn.Close()
 
-	client = ml.NewPredictorClient(conn)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	req := &ml.HelloRequest{
-		Greeting: &ml.Greeting{
-			Greeting: "Hello",
-			Name:     "Matatani",
-		},
-		From: "Matatani",
-	}
-
-	resp, err := client.Hello(ctx, req)
-	if err != nil {
-		log.Fatalf("could not greet: %v\n", err)
-	}
-	log.Printf("Greeting: %s", resp.Greeting)
-
-	return err
+	return client
 }
 
 func main() {
@@ -85,26 +63,28 @@ func main() {
 		log.Printf("Error processing config: %s\nUsing OS env", err)
 	}
 
+	conn, err := grpc.NewClient(cfg.MLHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("did not connect predictor service: %v", err)
+	}
+	defer conn.Close()
+
+	predictorClient := predictor_service.NewPredictorClient(conn)
+	matataniServer := server.NewMatataniServer(cfg, predictorClient)
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
 	defer stop()
 
 	grp, ctx := errgroup.WithContext(ctx)
 
-	httpServer := newHTTPServer(cfg)
+	httpServer := newHTTPServer(cfg, matataniServer)
 
 	grp.Go(func() error {
-		return runHTTPServer(ctx, httpServer)
+		return runHTTPServer(httpServer)
 	})
 	grp.Go(func() error {
 		return waitForShutdown(ctx, httpServer)
 	})
-
-	go func() {
-		err = callMLService(cfg)
-		if err != nil {
-			log.Printf("Error calling ML service: %v", err)
-		}
-	}()
 
 	if err := grp.Wait(); err != nil {
 		log.Printf("A server process failed: %v", err)

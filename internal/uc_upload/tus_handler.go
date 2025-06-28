@@ -1,6 +1,7 @@
 package uc_upload
 
 import (
+	"context"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -11,11 +12,12 @@ import (
 	"net/http"
 	"www.github.com/Maevlava/Matatani/backend/internal/config"
 	"www.github.com/Maevlava/Matatani/backend/internal/middleware"
+	"www.github.com/Maevlava/Matatani/backend/internal/predictor_service"
 )
 
 const BASE_PATH = "/upload/"
 
-func TusHandler(cfg *config.APIConfig) (*tusd.Handler, error) {
+func TusHandler(cfg *config.APIConfig, predictorClient predictor_service.PredictorClient) (*tusd.Handler, error) {
 
 	awsCfg := &aws.Config{
 		Endpoint:         aws.String(cfg.S3Endpoint),
@@ -45,20 +47,29 @@ func TusHandler(cfg *config.APIConfig) (*tusd.Handler, error) {
 	go func() {
 		for {
 			event := <-handler.CompleteUploads
-			handleUploadFinished(event)
+			handleUploadFinished(event, predictorClient, cfg)
 		}
 	}()
 
 	return handler, nil
 }
 
-func handleUploadFinished(event tusd.HookEvent) {
-	log.Printf("TUS: Upload finished!")
-	log.Printf("TUS: File ID: %s", event.Upload.ID)
-	log.Printf("TUS: File Size: %d", event.Upload.Size)
-	log.Printf("TUS: File Path on Disk: %s", event.Upload.Storage["Path"])
+func handleUploadFinished(
+	event tusd.HookEvent,
+	predictorClient predictor_service.PredictorClient,
+	cfg *config.APIConfig,
+) error {
 
-	// TODO: Orchestration Logic
+	response, err := predictorClient.PredictImage(context.Background(), &predictor_service.PredictImageRequest{
+		Bucket: cfg.S3Bucket,
+		Key:    cfg.AWSSecretKey,
+	})
+	if err != nil {
+		return err
+	}
+	
+	log.Println(response.ClassName)
+	return nil
 }
 func RegisterUploadRoutes(router *http.ServeMux, tushandler *tusd.Handler) {
 

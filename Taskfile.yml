@@ -1,8 +1,8 @@
 version: "3"
 tasks:
   generate_proto:
-    desc: "Build Proto for ML"
+    desc: "Predictor Proto"
     cmds:
       - protoc -I ../matatani-proto
-        --go_out=ml --go_opt=paths=source_relative 
-        --go-grpc_out=ml --go-grpc_opt=paths=source_relative ../matatani-proto/predictor.proto
+        --go_out=./internal/predictor_service --go_opt=paths=source_relative 
+        --go-grpc_out=./internal/predictor_service --go-grpc_opt=paths=source_relative ../matatani-proto/predictor.proto

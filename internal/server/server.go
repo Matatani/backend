@@ -9,7 +9,18 @@ import (
 	"www.github.com/Maevlava/Matatani/backend/internal/uc_upload"
 )
 
-func NewRouter(cfg *config.APIConfig, predictorClient predictor_service.PredictorClient) http.Handler {
+type MatataniServer struct {
+	cfg             *config.APIConfig
+	predictorClient predictor_service.PredictorClient
+}
+
+func NewMatataniServer(cfg *config.APIConfig, predictorClient predictor_service.PredictorClient) *MatataniServer {
+	return &MatataniServer{
+		cfg:             cfg,
+		predictorClient: predictorClient,
+	}
+}
+func (s *MatataniServer) NewHTTPRouter() http.Handler {
 	mux := http.NewServeMux()
 
 	// Heading features
@@ -17,7 +28,7 @@ func NewRouter(cfg *config.APIConfig, predictorClient predictor_service.Predicto
 	uc_heading.RegisterHeadingRoutes(mux, headingHandler)
 
 	// Upload features
-	tusHandler, err := uc_upload.TusHandler(cfg, predictorClient)
+	tusHandler, err := uc_upload.TusHandler(s.cfg, s.predictorClient)
 	uc_upload.RegisterUploadRoutes(mux, tusHandler)
 
 	if err != nil {
