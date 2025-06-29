@@ -60,15 +60,23 @@ func handleUploadFinished(
 	cfg *config.APIConfig,
 ) error {
 
+	s3Key, ok := event.Upload.Storage["Key"]
+	if !ok {
+		log.Println("S3 key not found in upload event")
+		return nil
+	}
+	log.Printf("S3 key received: %s\n", s3Key)
+
 	response, err := predictorClient.PredictImage(context.Background(), &predictor_service.PredictImageRequest{
 		Bucket: cfg.S3Bucket,
-		Key:    cfg.AWSSecretKey,
+		Key:    s3Key,
 	})
 	if err != nil {
+		log.Printf("Error calling PredictImage: %v\n", err)
 		return err
 	}
-	
-	log.Println(response.ClassName)
+
+	log.Printf("Prediction response: %v\n", response.ClassName)
 	return nil
 }
 func RegisterUploadRoutes(router *http.ServeMux, tushandler *tusd.Handler) {
